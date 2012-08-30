@@ -71,6 +71,15 @@ struct dio_entity{
 };
 
 
+struct dio_nugget_path
+{
+	struct list_head link;
+
+	char states[MAX_ELEMENT_SIZE];
+	int count_nugget;
+	int total_time;
+}
+
 /*	function interfaces	*/
 //function for bit list
 static void insert_proper_pos(struct dio_entity* pde);
@@ -214,6 +223,68 @@ err:
 	if( pde != NULL )
 		free(pde);
 	return 0;
+}
+
+struct dio_nugget_path* find_nugget_path(struct list_head nugget_path_head, char* states)
+{
+	struct list_head p;
+
+	__list_for_each(p, nugget_path_head)
+	{
+		char* pstates;
+		pstates = list_entry(p, char, states);
+		
+		if(strcmp(pstates, states) == 0)
+		{
+			return list_entry(p, 0, 0);
+		}
+	}
+
+	return NULL;
+}
+
+void print_path_statistic(void)
+{
+	strcut rb_node *node;
+
+	node = rb_first(rb_root);
+	while((node = rb_next(node)) != NULL)
+	{
+		struct list_head* nugget_head;
+
+		nugget_head = rb_entity(node, struct list_head, nghead);
+		
+		struct list_head* p;
+		__list_for_each(p, nugget_head)
+		{
+			struct list_head nugget_path_head;
+			struct dio_nugget_path* pnugget_path;
+			char* pstates;
+			uint64_t* ptimes;
+			int* pelemidx;
+			int i;
+
+			INIT_LIST_HEAD(nugget_path_head);
+
+			pelemidx = list_entry(p, int, elemidx);
+			pstates = list_entry(p, char, states);
+			ptimes = list_entry(p, uint64_t, times);
+
+			pnugget_path = find_nugget_path(nugget_path_head, pstates);
+			if(pnugget_path == NULL)
+			{
+				pnugget_path = (struct dio_nugget_path*)malloc(sizeof(struct dio_nugget_path));
+				pnugget_path->states = pstates;
+				list_add(pnugget_path, nugget_path_head);
+			}
+
+			pnugget_path->count_nugget++;
+			for(i=0 ; i<*pelemidx ; i++)
+			{
+				pnugget_path->total_time += ptimes[i];
+			}
+		}
+	}
 }
 
 void insert_proper_pos(struct dio_entity* pde){
