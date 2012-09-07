@@ -949,7 +949,7 @@ void print_path_statistic(void)
 				SECONDS(pnugget_path->data_time_write.max_time), NANO_SECONDS(pnugget_path->data_time_write.max_time),
 				SECONDS(pnugget_path->data_time_write.min_time), NANO_SECONDS(pnugget_path->data_time_write.min_time)
 		);
-
+		fprintf(output, "\n");
 	}
 }
 
