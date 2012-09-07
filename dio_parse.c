@@ -509,6 +509,33 @@ void handle_action(uint32_t act, struct dio_nugget* pdng){
 	};
 }
 
+int instr(const char* str1, const char* str2)
+{
+        int i, j;
+
+        i=0;
+        while(str1[i] != '\0')
+        {
+                j=0;
+                while(str2[j] != '\0')
+                {
+                        if(str1[i+j] != str2[j])
+                        {
+                                break;
+                        }
+                        j++;
+                }
+                if(str2[j] == '\0')
+                {
+                        return i+1;
+                }
+                i++;
+        }
+
+        return 0;
+}
+
+
 struct dio_nugget_path* find_nugget_path(struct list_head* nugget_path_head, char* states)
 {
 	struct dio_nugget_path* pdngpath;
