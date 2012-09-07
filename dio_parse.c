@@ -904,9 +904,9 @@ void travel_path_statistic(struct dio_nugget* pdng)
 
 void process_path_statistic(int ng_cnt)
 {
-	// Calculate average time.
 	list_for_each_entry(pnugget_path, &nugget_path_head, link)
 	{
+		// Calculate average time.
 		if(pnugget_path->data_time_read.count != 0)
 		{
 			pnugget_path->data_time_read.average_time = pnugget_path->data_time_read.total_time / pnugget_path->data_time_read.count;
@@ -915,7 +915,18 @@ void process_path_statistic(int ng_cnt)
 		{
 			pnugget_path->data_time_write.average_time = pnugget_path->data_time_write.total_time / pnugget_path->data_time_write.count;
 		}
+
+		// if min_time is -1 that initializing value for calculating min_time, change that to 0.
+		if(pnugget_path->data_time_read.min_time == -1)
+		{
+			pnugget_path->data_time_read.min_time = 0;
+		}
+		if(pnugget_path->data_time_write.min_time == -1)
+		{
+			pnugget_path->data_time_write.min_time = 0;
+		}
 	}
+
 }
 
 void print_path_statistic(void)
@@ -1241,6 +1252,15 @@ void process_cpu_statistic(int ng_cnt)
 		if(diocpu[i].data_time_write.count != 0)
 		{
 			diocpu[i].data_time_write.average_time = diocpu[i].data_time_write.total_time / diocpu[i].data_time_write.count;
+		}
+		// if min_time is -1 that initializing value for calculating min_time, change that to 0.
+		if(diocpu[i].data_time_read.min_time == -1)
+		{
+			diocpu[i].data_time_read.min_time = 0;
+		}
+		if(diocpu[i].data_time_write.min_time == -1)
+		{
+			diocpu[i].data_time_write.min_time = 0;
 		}
 	}
 }
