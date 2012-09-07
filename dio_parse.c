@@ -95,21 +95,6 @@ struct bit_entity{
 	struct blk_io_trace bit;
 };
 
-struct dio_nugget_path
-{
-	struct list_head link;
-
-	char states[MAX_ELEMENT_SIZE];
-	int count_nugget;
-	int count_read;
-	int count_write;
-	unsigned int total_time;
-	unsigned int average_time;
-	unsigned int max_time;
-	unsigned int min_time;
-	int* interval_time;
-};
-
 struct data_time
 {
 	unsigned int total_time;
@@ -118,6 +103,16 @@ struct data_time
 
 	unsigned int min_time;
 	unsigned int max_time;
+};
+
+struct dio_nugget_path
+{
+	struct list_head link;
+
+	char states[MAX_ELEMENT_SIZE];
+
+	struct data_time data_time_read;
+	struct data_time data_time_write;
 };
 
 struct dio_cpu
@@ -860,11 +855,12 @@ void init_path_statistic(void)
 
 void travel_path_statistic(struct dio_nugget* pdng)
 {
-	char* 		pstates;
-	uint64_t*	ptimes;
-	int*		pelemidx;
+	char* 			pstates;
+	uint64_t*		ptimes;
+	int*			pelemidx;
 	int			i;
 	int			nugget_time;
+	struct data_time*	pdata_time;
 
 	pnugget_path = find_nugget_path(&nugget_path_head, pdng->states);
 	if(pnugget_path == NULL)	// if not exist
@@ -873,7 +869,8 @@ void travel_path_statistic(struct dio_nugget* pdng)
 
 		// Init pnugget_path's members
 		memset(pnugget_path, 0, sizeof(struct dio_nugget_path));
-		pnugget_path->min_time = -1;
+		pnugget_path->data_time_read.min_time = -1;
+		pnugget_path->data_time_write.min_time = -1;
 		strncpy(pnugget_path->states, pdng->states, MAX_ELEMENT_SIZE);
 
 		// Add list
@@ -883,24 +880,24 @@ void travel_path_statistic(struct dio_nugget* pdng)
 	// Add read/write count to distribute those.
 	if(pdng->category & BLK_TC_READ)
 	{
-		pnugget_path->count_read++;
+		pdata_time = &pnugget_path->data_time_read;
 	}
 	if(pdng->category & BLK_TC_WRITE)
 	{
-		pnugget_path->count_write++;
+		pdata_time = &pnugget_path->data_time_write;
 	}
 
 	// Set data on pnugget_path.
-	pnugget_path->count_nugget++;
 	nugget_time = pdng->times[pdng->elemidx] - pdng->times[0];
-	pnugget_path->total_time += nugget_time;
-	if(pnugget_path->max_time < nugget_time)
+	pdata_time->count++;
+	pdata_time->total_time += nugget_time;
+	if(pdata_time->max_time < nugget_time)
 	{
-		pnugget_path->max_time = nugget_time;
+		pdata_time->max_time = nugget_time;
 	}
-	if(pnugget_path->min_time > nugget_time)
+	if(pdata_time->min_time > nugget_time)
 	{
-		pnugget_path->min_time = nugget_time;
+		pdata_time->min_time = nugget_time;
 	}
 }
 
@@ -910,13 +907,20 @@ void process_path_statistic(int ng_cnt)
 	// Calculate average time.
 	list_for_each_entry(pnugget_path, &nugget_path_head, link)
 	{
-		pnugget_path->average_time = pnugget_path->total_time / pnugget_path->count_nugget;
+		if(pnugget_path->data_time_read.count != 0)
+		{
+			pnugget_path->data_time_read.average_time = pnugget_path->data_time_read.total_time / pnugget_path->data_time_read.count;
+		}
+		if(pnugget_path->data_time_write.count != 0)
+		{
+			pnugget_path->data_time_write.average_time = pnugget_path->data_time_write.total_time / pnugget_path->data_time_write.count;
+		}
 	}
 }
 
 void print_path_statistic(void)
 {
-	fprintf(output,"%20s %8s %8s %4s %12s %12s %12s \n", " ", "횟수", "읽기횟수", "쓰기횟수", "평균수행시간", "최대수행시간", "최소수행시간");
+	fprintf(output,"%20s %6s %6s %12s %12s %12s \n", "Path", "Type", "No", "AverageTime", "MaxTime", "MinTime");
 	list_for_each_entry(pnugget_path, &nugget_path_head, link)
 	{
 		if(instr(pnugget_path->states, "P") || instr(pnugget_path->states, "U") || instr(pnugget_path->states, "?"))
@@ -924,11 +928,15 @@ void print_path_statistic(void)
 			continue;
 		}
 
-		fprintf(output,"%20s %4d %8d %8d %2llu:%.9llu %2llu:%.9llu %2llu:%.9llu \n", pnugget_path->states, pnugget_path->count_nugget,
-			pnugget_path->count_read, pnugget_path->count_write,
-			SECONDS(pnugget_path->average_time), NANO_SECONDS(pnugget_path->average_time),
-			SECONDS(pnugget_path->max_time), NANO_SECONDS(pnugget_path->max_time),
-			SECONDS(pnugget_path->min_time), NANO_SECONDS(pnugget_path->min_time)
+		fprintf(output, "%20s %6s %6d %2llu:%.10llu %2llu:%.10llu %2llu:%.10llu \n", pnugget_path->states, "Read", pnugget_path->data_time_read.count,
+				SECONDS(pnugget_path->data_time_read.average_time), NANO_SECONDS(pnugget_path->data_time_read.average_time),
+				SECONDS(pnugget_path->data_time_read.max_time), NANO_SECONDS(pnugget_path->data_time_read.max_time),
+				SECONDS(pnugget_path->data_time_read.min_time), NANO_SECONDS(pnugget_path->data_time_read.min_time)
+		);
+		fprintf(output, "%20s %6s %6d %2llu:%.10llu %2llu:%.10llu %2llu:%.10llu \n", " ", "Write", pnugget_path->data_time_write.count,
+				SECONDS(pnugget_path->data_time_write.average_time), NANO_SECONDS(pnugget_path->data_time_write.average_time),
+				SECONDS(pnugget_path->data_time_write.max_time), NANO_SECONDS(pnugget_path->data_time_write.max_time),
+				SECONDS(pnugget_path->data_time_write.min_time), NANO_SECONDS(pnugget_path->data_time_write.min_time)
 		);
 
 	}
