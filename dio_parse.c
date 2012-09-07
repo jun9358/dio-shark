@@ -615,6 +615,11 @@ void print_path_statistic(void)
 	list_for_each_entry(pnugget_path, &nugget_path_head, link)
 	{
 
+                if(instr(pnugget_path->states, "P") || instr(pnugget_path->states, "U") || instr(pnugget_path->states, "?"))
+                {
+                        continue;
+                }
+
 		printf("%20s %4d %8d %8d %2llu:%.9llu %2llu:%.9llu %2llu:%.9llu \n", pnugget_path->states, pnugget_path->count_nugget,
 			pnugget_path->count_read, pnugget_path->count_write,
 			SECONDS(pnugget_path->average_time), NANO_SECONDS(pnugget_path->average_time),
