@@ -208,9 +208,9 @@ void clear_path_statistic(void);
 
 // cpu statistic functions
 void create_diocpu(void);
-void init_cpu_statstic(void);
+void init_cpu_statistic(void);
 void travel_cpu_statistic(struct dio_nugget* pdng);
-void process_cpu_statistic(void);
+void process_cpu_statistic(int ng_cnt);
 void print_cpu_statistic(void);
 void clear_cpu_statistic(void);
 
@@ -657,7 +657,10 @@ void extract_nugget(struct blk_io_trace* pbit, struct dio_nugget* pdngbuf){
 
 	handle_action(pbit->action, pdngbuf);
 	pdngbuf->category = pbit->action >> BLK_TC_SHIFT;
-	pdngbuf->idxCPU = pbit->cpu;
+	if(pbit->cpu < 128)
+	{
+		pdngbuf->idxCPU = pbit->cpu;
+	}
 	pdngbuf->elemidx++;
 }
 
@@ -1183,11 +1186,11 @@ void travel_cpu_statistic(struct dio_nugget* pdng)
 	struct data_time *pdata_time;
 
 	// Is enough diocpu?
-	if(maxCPU < pdng->idxCPU)
+	while(maxCPU < pdng->idxCPU)
 	{
 		create_diocpu();
 	}
-
+	
 	// Distribute read/write data and point that.
 	if(pdng->category & BLK_TC_READ)
 	{
@@ -1197,7 +1200,11 @@ void travel_cpu_statistic(struct dio_nugget* pdng)
 	{
 		pdata_time = &diocpu[pdng->idxCPU].data_time_write;
 	}
-
+	else
+	{
+		return ;
+	}
+	
 	// Process datas.
 	nugget_time = pdng->times[pdng->elemidx] - pdng->times[0];
 	pdata_time->count++;
@@ -1212,15 +1219,21 @@ void travel_cpu_statistic(struct dio_nugget* pdng)
 	}
 }
 
-void process_cpu_statistic(void)
+void process_cpu_statistic(int ng_cnt)
 {
 	int i;
 
 	// Calculate average time.
 	for(i=0 ; i<maxCPU ; i++)
 	{
-		diocpu[i].data_time_read.average_time = diocpu[i].data_time_read.total_time / diocpu[i].data_time_read.count;
-		diocpu[i].data_time_write.average_time = diocpu[i].data_time_write.total_time / diocpu[i].data_time_write.count;
+		if(diocpu[i].data_time_read.count != 0)
+		{
+			diocpu[i].data_time_read.average_time = diocpu[i].data_time_read.total_time / diocpu[i].data_time_read.count;
+		}
+		if(diocpu[i].data_time_write.count != 0)
+		{
+			diocpu[i].data_time_write.average_time = diocpu[i].data_time_write.total_time / diocpu[i].data_time_write.count;
+		}
 	}
 }
 
@@ -1241,6 +1254,7 @@ void print_cpu_statistic(void)
 			SECONDS(diocpu[i].data_time_write.max_time), NANO_SECONDS(diocpu[i].data_time_write.max_time),
 			SECONDS(diocpu[i].data_time_write.min_time), NANO_SECONDS(diocpu[i].data_time_write.min_time)
 		);
+		fprintf(output, "\n");
 	}
 }
 
