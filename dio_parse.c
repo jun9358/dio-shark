@@ -197,8 +197,22 @@ static void statistic_rb_traveling();
 // statistic for each list entity
 static void statistic_list_for_each();
 
-void print_path_statistic(void);
+// path statistic functions
+int instr(const char* str1, const char* str2);
 struct dio_nugget_path* find_nugget_path(struct list_head* nugget_path_head, char* states);
+void init_path_statistic(void);
+void travel_path_statistic(struct dio_nugget* pdng);
+void process_path_statistic(int ng_cnt);
+void print_path_statistic(void);
+void clear_path_statistic(void);
+
+// cpu statistic functions
+void create_diocpu(void);
+void init_cpu_statstic(void);
+void travel_cpu_statistic(struct dio_nugget* pdng);
+void process_cpu_statistic(void);
+void print_cpu_statistic(void);
+void clear_cpu_statistic(void);
 
 /*--------------	global variables	-----------------------*/
 #define MAX_FILEPATH_LEN 255
@@ -836,7 +850,7 @@ struct dio_nugget_path* find_nugget_path(struct list_head* nugget_path_head, cha
 }
 
 
-void init_path_statistic()
+void init_path_statistic(void)
 {
 	INIT_LIST_HEAD(&nugget_path_head);
 }
