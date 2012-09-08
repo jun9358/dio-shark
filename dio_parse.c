@@ -84,6 +84,7 @@ struct dio_nugget{
 	uint64_t sector;	//sector number of bit who was requested. is it really need?
 	struct dio_nugget* mlink;	//if it was merged, than mlink points the other nugget
 	int ngflag;
+	int idxCPU;
 };
 
 // list node of blk_io_trace
@@ -108,6 +109,23 @@ struct dio_nugget_path
 	unsigned int min_time;
 	int* interval_time;
 };
+
+struct data_time
+{
+	unsigned int total_time;
+	unsigned int count;
+	unsigned int average_time;
+
+	unsigned int min_time;
+	unsigned int max_time;
+}
+
+struct dio_cpu
+{
+	struct data_time data_time_read;
+	struct data_time data_time_write;
+}
+
 
 // statistic initialize function.
 typedef void(*statistic_init_func)(void);
@@ -490,6 +508,7 @@ void extract_nugget(struct blk_io_trace* pbit, struct dio_nugget* pdngbuf){
 
 	handle_action(pbit->action, pdngbuf);
 	pdngbuf->category = pbit->action >> BLK_TC_SHIFT;
+	pdngbuf->idxCPU = pbit->cpu;
 	pdngbuf->elemidx++;
 }
 
@@ -770,4 +789,107 @@ void process_section_statistic(int ng_cnt){
 }
 
 void clear_section_statistic(){
+}
+
+//------------------- cpu statistics ------------------------------//
+
+#define INIT_NUM_CPU 4
+struct dio_cpu *diocpu;
+int maxCPU = 0;
+
+void create_diocpu(void)
+{
+	// Create diocpu
+	if(dioCPU == NULL)
+	{
+		diocpu = (struct dio_cpu*)malloc(sizeof(struct dio_cpu) * INIT_NUM_CPU);
+	}
+	else
+	{
+		diocpu = (struct dio_cpu*)realloc(sizeof(struct dio_cpu) * (maxCPU + INIT_NUM_CPU));
+	}
+
+	// Init members
+	memset(diocpu + maxCPU, 0, sizeof(struct dio_cpu) * INIT_NUM_CPU);
+	for(i=0 ; i<INIT_NUM_CPU ; i++)
+	{
+		diocpu[maxCPU + i].data_time_read.min_time = -1;
+		diocpu[maxCPU + i].data_time_write.min_time = -1;
+	}
+	maxCPU += INIT_NUM_CPU;
+}
+
+void init_cpu_statistic(void)
+{
+	create_diocpu();
+}
+
+void travel_cpu_statistic(struct dio_nugget* pdng)
+{
+	unsigned int nugget_time;
+	struct data_time *pdata_time;
+
+	// Is enough diocpu?
+	if(maxCPU < pdng->idxCPU)
+	{
+		create_diocpu();
+	}
+
+	// Distribute read/write data and point that.
+	if(pdng->category & BLK_TC_READ)
+	{
+		pdata_time = &diocpu[pdng->idxCPU].data_time_read;
+	}
+	else if(pdng->category & BLK_TC_WRITE)
+	{
+		pdata_time = &diocpu[pdng->idxCPU].data_time_write;
+	}
+
+	// Process datas.
+	nugget_time = pdng->times[pdng->elemidx] - pdng->times[0];
+	pdata_time.count++;
+	pdata_time.total_time += nugget_time;
+	if(pdata_time.max_time < nugget_time)
+	{
+		pdata_time.max_time = nugget_time; 
+	}
+	if(pdata_time.min_time > nugget_time)
+	{
+		pdata_time.min_time = nugget_time; 
+	}
+}
+
+void process_cpu_statistic(void)
+{
+	int i;
+
+	// Calculate average time.
+	for(i=0 ; i<maxCPU ; i++)
+	{
+		diocpu[i].data_time_read.average_time = diocpu[i].data_time_read.total_time / diocpu[i].data_time_read.count;
+		diocpu[i].data_time_write.average_time = diocpu[i].data_time_write.total_time / diocpu[i].data_time_write.count;
+	}
+}
+
+void print_cpu_statistic(void)
+{
+	printf("%4s %6s %6s %12s %12s %12s \n", "CPU", "Type", "No", "AverageTime", "MaxTime", "MinTime");
+	for(i=0 ; i<maxCPU ; i++)
+	{
+		printf("%4d %6s %6d %2llu:%.10llu %2llu:%.10llu %2llu:%.10llu \n", i, "Read", diocpu[i].data_time_read.count,
+			SECONDS(diocpu[i].data_time_read.average_time), NANO_SECONDS(diocpu[i].data_time_read.average_time),
+			SECONDS(diocpu[i].data_time_read.max_time), NANO_SECONDS(diocpu[i].data_time_read.max_time),
+			SECONDS(diocpu[i].data_time_read.min_time), NANO_SECONDS(diocpu[i].data_time_read.min_time)
+		);
+		printf("%4s %6s %6d %2llu:%.10llu %2llu:%.10llu %2llu:%.10llu \n", " ", "Write", diocpu[i].data_time_write.count,
+			SECONDS(diocpu[i].data_time_write.average_time), NANO_SECONDS(diocpu[i].data_time_write.average_time),
+			SECONDS(diocpu[i].data_time_wrtie.max_time), NANO_SECONDS(diocpu[i].data_time_write.max_time),
+			SECONDS(diocpu[i].data_time_write.min_time), NANO_SECONDS(diocpu[i].data_time_write.min_time)
+		);
+	}
+}
+
+void clear_cpu_statistic(void)
+{
+	free(diocpu);
 }
