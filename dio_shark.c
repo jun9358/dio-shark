@@ -26,8 +26,10 @@
 #include "dio_shark.h"
 //#include "dst/dio_list.h"
 
-#define BUF_SIZE 	1024*512
+#define BUF_SIZE 	1024*8
 #define BUF_NR		4
+
+#define MAX_FILE_LENGTH 512
 
 /* define macro and structure define */
 #define BUTS_STAT_NONE		0
@@ -35,11 +37,16 @@
 #define	BUTS_STAT_STARTED	2
 #define	BUTS_STAT_STOPPED	3
 
+
+static char outPath[MAX_FILE_LENGTH];
+static char devPath[MAX_FILE_LENGTH];
+static char devName[16];
 /* global variables */
 bool g_isdone = false;
 pthread_mutex_t g_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t g_cond	= PTHREAD_COND_INITIALIZER;
 pthread_barrier_t g_barrier;
+
 
 /* function declaration */
 struct list_head* create_list_head(void);
@@ -77,6 +84,8 @@ int main(int argc, char** argv){
 	int buts_stat = BUTS_STAT_NONE;
 	int ret;
 
+	strcpy(outPath,"dioshark.output");
+
 	DBGOUT("sysconf() entry \n");
 	// get the number of cpus
 	numCPU = sysconf(_SC_NPROCESSORS_ONLN);
@@ -85,17 +94,14 @@ int main(int argc, char** argv){
 	set_signalHandler();
 
 	// handle args
-	/*
-	   if( !parse_args(argc, argv) )
-	   {
-	   printf("asdf");
-	   fprintf(stderr, "dio-shark argument error.\n");
-	   goto out;
-	   }
-	 */
+	if( !parse_args(argc, argv) ) {
+		fprintf(stderr, "dio-shark argument error.\n");
+		goto out;
+	}
+
 	DBGOUT("openfile_device() entry \n");
 	// open device file	
-	fdDevice = openfile_device("/dev/sda");
+	fdDevice = openfile_device(devPath);
 	if(fdDevice < 0)
 	{
 		fprintf(stderr, "openfile_device() failed: %d/%s\n", errno, strerror(errno));
@@ -113,6 +119,7 @@ int main(int argc, char** argv){
 		goto out;
 	}
 	buts_stat = BUTS_STAT_SETUPED;
+	strcpy(devName,buts.name);
 	DBGOUT("create_list_head() entry \n");
 	// create list head for creating threads
 	shark_boss = create_list_head();
@@ -226,11 +233,10 @@ bool parse_args(int argc, char** argv){
 	while( (tok = getopt_long(argc, argv, ARG_OPTS, arg_opts, NULL)) >= 0 ){
 		switch(tok){
 			case 'd':
-				printf(" option d!\n");
-				//set device info
+				strcpy(devPath,optarg);
 				break;
 			case 'o':
-				printf(" option o!\n");
+				strcpy(outPath,optarg);
 				//set output file
 				break;
 			default:
@@ -466,7 +472,7 @@ int openfile_debugfs(int idxCPU)
 	char buf[255];
 
 	memset(buf, 0, sizeof(buf));
-	sprintf(buf, "/sys/kernel/debug/block/sda/trace%d", idxCPU);
+	sprintf(buf, "/sys/kernel/debug/block/%s/trace%d", devName, idxCPU);
 
 	fdDebugfs = open(buf, O_RDONLY);
 	if (fdDebugfs < 0)
@@ -477,7 +483,7 @@ int openfile_debugfs(int idxCPU)
 int openfile_output(void)
 {	int fdOutput;
 
-	fdOutput = open("./dioshark.output", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	fdOutput = open(outPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fdOutput <0)
 		return -1;
 
