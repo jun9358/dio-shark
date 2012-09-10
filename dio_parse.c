@@ -414,8 +414,18 @@ int main(int argc, char** argv){
 		add_nugget_stat_func(NULL, NULL, print_sector);
 	}
 
-	//statistic_rb_traveling();
-	//statistic_list_for_each();
+	//statistics
+	add_bit_stat_func(init_type_statistic, itr_type_statistic, process_type_statistic);
+
+	if(is_path)
+		add_nugget_stat_func(init_path_statistic, travel_path_statistic, process_path_statistic);
+	if(is_cpu)
+		add_bit_stat_func(init_cpu_statistic, itr_cpu_statistic, process_cpu_statistic);
+	if(is_pid)
+		add_nugget_stat_func(init_pid_statistic, travel_pid_statistic, process_path_statistic);
+
+	statistic_rb_traveling();
+	statistic_list_for_each();
 
 	//clean all list entities
 	if(output!=stdout){
@@ -828,6 +838,7 @@ void statistic_list_for_each(){
 			if( stat_itr_fns[i] != NULL )
 				stat_itr_fns[i](&pos->bit);
 		}
+		cnt++;
 	}
 
 	//process data
@@ -896,12 +907,12 @@ void process_type_statistic(int bit_cnt){
 	int tot;
 	fprintf(output, "%7s %10s %13s\n", "TYPE","COUNT","PERCENTAGE");
 	
-	fprintf(output, "%7s %10d %13d\n", "R",r_cnt, r_cnt/(double)bit_cnt*100);
-	fprintf(output, "%7s %10d %13d\n", "W",w_cnt,w_cnt/(double)bit_cnt*100);
-	fprintf(output, "%7s %10d %13d\n", "Unknown",x_cnt, x_cnt/(double)bit_cnt*100);
+	fprintf(output, "%7s %10d %13f\n", "R",r_cnt, r_cnt/(double)bit_cnt*100);
+	fprintf(output, "%7s %10d %13f\n", "W",w_cnt,w_cnt/(double)bit_cnt*100);
+	fprintf(output, "%7s %10d %13f\n", "Unknown",x_cnt, x_cnt/(double)bit_cnt*100);
 
 	tot = r_cnt + w_cnt + x_cnt;
-	fprintf(output, "%7s %10d %13d\n", "Total :",tot, tot/(double)bit_cnt*100);
+	fprintf(output, "%7s %10d %13f\n", "Total :",tot, tot/(double)bit_cnt*100);
 }
 
 //------------------- path statistics ------------------------------//
@@ -1333,15 +1344,15 @@ void process_cpu_statistic(int bit_cnt)
 
 	for(i=0 ; i<maxCPU ; i++)
 	{
-		fprintf(output,"%4d %7s %8d %8d\n",
+		fprintf(output,"%4d %7s %8d %8f\n",
 			i, "R", diocpu[i].r_cnt, diocpu[i].r_cnt/(double)bit_cnt*100);
-		fprintf(output,"%4s %7s %8d %8d\n",
+		fprintf(output,"%4s %7s %8d %8f\n",
 			" ","W",diocpu[i].w_cnt, diocpu[i].w_cnt/(double)bit_cnt*100);
-		fprintf(output,"%4s %7s %8d %8d\n",
+		fprintf(output,"%4s %7s %8d %8f\n",
 			" ","unknown",diocpu[i].x_cnt, diocpu[i].x_cnt/(double)bit_cnt*100);
 
 		tot = diocpu[i].r_cnt + diocpu[i].w_cnt + diocpu[i].x_cnt;
-		fprintf(output,"%4s %7s %8d %8d\n",
+		fprintf(output,"%4s %7s %8d %8f\n",
 			" ","Total :",tot, tot/(double)bit_cnt*100);
 		fprintf(output,"\n");
 	}
