@@ -110,10 +110,14 @@ struct dio_nugget_path
 {
 	struct list_head link;
 
+	int elemidx;
 	char states[MAX_ELEMENT_SIZE];
 
 	struct data_time data_time_read;
 	struct data_time data_time_write;
+
+	struct data_time* data_time_interval_read;
+	struct data_time* data_time_interval_write;
 };
 
 struct dio_cpu
@@ -191,6 +195,8 @@ static void statistic_rb_traveling();
 static void statistic_list_for_each();
 
 // print functions
+void print_data_time_statistic(FILE* stream, struct data_time* pdata_time);
+
 void print_time();
 void print_sector();
 
@@ -927,7 +933,6 @@ struct dio_nugget_path* find_nugget_path(struct list_head* nugget_path_head, cha
 	return NULL;
 }
 
-
 void init_path_statistic(void)
 {
 	INIT_LIST_HEAD(&nugget_path_head);
@@ -940,17 +945,28 @@ void travel_path_statistic(struct dio_nugget* pdng)
 	int*			pelemidx;
 	int			i;
 	int			nugget_time;
+	int			nugget_time_interval;
 	struct data_time*	pdata_time;
-
+	struct data_time*	pdata_time_interval;
+	
 	pnugget_path = find_nugget_path(&nugget_path_head, pdng->states);
 	if(pnugget_path == NULL)	// if not exist
 	{
 		pnugget_path = (struct dio_nugget_path*)malloc(sizeof(struct dio_nugget_path));
+		memset(pnugget_path, 0, sizeof(struct dio_nugget_path));
+
+		pnugget_path->data_time_interval_read = (struct data_time*)malloc(sizeof(struct data_time) * pdng->elemidx);
+		pnugget_path->data_time_interval_write = (struct data_time*)malloc(sizeof(struct data_time) * pdng->elemidx);
 
 		// Init pnugget_path's members
-		memset(pnugget_path, 0, sizeof(struct dio_nugget_path));
+		pnugget_path->elemidx = pdng->elemidx;
 		pnugget_path->data_time_read.min_time = -1;
 		pnugget_path->data_time_write.min_time = -1;
+		for(i=0 ; i<pnugget_path->elemidx ; i++)
+		{
+			pnugget_path->data_time_interval_read[i].min_time = -1;
+			pnugget_path->data_time_interval_write[i].min_time = -1;
+		}
 		strncpy(pnugget_path->states, pdng->states, MAX_ELEMENT_SIZE);
 
 		// Add list
@@ -961,14 +977,16 @@ void travel_path_statistic(struct dio_nugget* pdng)
 	if(pdng->category & BLK_TC_READ)
 	{
 		pdata_time = &pnugget_path->data_time_read;
+		pdata_time_interval = pnugget_path->data_time_interval_read;
 	}
 	if(pdng->category & BLK_TC_WRITE)
 	{
 		pdata_time = &pnugget_path->data_time_write;
+		pdata_time_interval = pnugget_path->data_time_interval_write;
 	}
 
 	// Set data on pnugget_path.
-	nugget_time = pdng->times[pdng->elemidx-1] - pdng->times[0];
+	nugget_time = pdng->times[pnugget_path->elemidx-1] - pdng->times[0];
 	pdata_time->count++;
 	pdata_time->total_time += nugget_time;
 	if(pdata_time->max_time < nugget_time)
@@ -979,16 +997,34 @@ void travel_path_statistic(struct dio_nugget* pdng)
 	{
 		pdata_time->min_time = nugget_time;
 	}
+
+	// Set data on pnugget_path->data_time_interval
+	for(i=0 ; i<pnugget_path->elemidx ; i++)
+	{
+		nugget_time_interval = pdng->times[i+1] - pdng->times[i];
+		pdata_time_interval[i].count++;
+		pdata_time_interval[i].total_time += nugget_time_interval;
+		if(pdata_time_interval[i].max_time < nugget_time)
+		{
+			pdata_time_interval[i].max_time = nugget_time;
+		}
+		if(pdata_time_interval[i].min_time > nugget_time)
+		{
+			pdata_time_interval[i].min_time = nugget_time;
+		}
+	}
 }
 
 
 void process_path_statistic(int ng_cnt)
 {
+	int i;
+
 	fprintf(output,"%20s %6s %6s %12s %12s %12s \n", "Path", "Type", "No", "AverageTime", "MaxTime", "MinTime");
 
 	list_for_each_entry(pnugget_path, &nugget_path_head, link)
 	{
-		// Calculate average time.
+		// Calculate average time(path)
 		if(pnugget_path->data_time_read.count != 0)
 		{
 			pnugget_path->data_time_read.average_time = pnugget_path->data_time_read.total_time / pnugget_path->data_time_read.count;
@@ -1008,22 +1044,68 @@ void process_path_statistic(int ng_cnt)
 			pnugget_path->data_time_write.min_time = 0;
 		}
 
+		// Calculate average time(path interval)
+		for(i=0 ; i<pnugget_path->elemidx ; i++)
+		{
+			if(pnugget_path->data_time_interval_read[i].count != 0)
+			{
+				pnugget_path->data_time_interval_read[i].average_time = pnugget_path->data_time_interval_read[i].total_time / pnugget_path->data_time_interval_read[i].count;
+			}
+			if(pnugget_path->data_time_interval_write[i].count != 0)
+			{
+				pnugget_path->data_time_interval_write[i].average_time = pnugget_path->data_time_interval_write[i].total_time / pnugget_path->data_time_interval_write[i].count;
+			}
+	
+			// if min_time is -1 that initializing value for calculating min_time, change that to 0.
+			if(pnugget_path->data_time_interval_read[i].min_time == -1)
+			{
+				pnugget_path->data_time_interval_read[i].min_time = 0;
+			}
+			if(pnugget_path->data_time_interval_write[i].min_time == -1)
+			{
+				pnugget_path->data_time_interval_write[i].min_time = 0;
+			}
+		}
+
 		//printing
 		if(instr(pnugget_path->states, "P") || instr(pnugget_path->states, "U") || instr(pnugget_path->states, "?"))
 		{
 			continue;
 		}
+		fprintf(output, "%20s %6s ", pnugget_path->states, "Read");
+		print_data_time_statistic(output, &pnugget_path->data_time_read);
+		fprintf(output, "\n");
 
-		fprintf(output, "%20s %6s %6d %2llu:%.10llu %2llu:%.10llu %2llu:%.10llu \n", pnugget_path->states, "Read", pnugget_path->data_time_read.count,
-				SECONDS(pnugget_path->data_time_read.average_time), NANO_SECONDS(pnugget_path->data_time_read.average_time),
-				SECONDS(pnugget_path->data_time_read.max_time), NANO_SECONDS(pnugget_path->data_time_read.max_time),
-				SECONDS(pnugget_path->data_time_read.min_time), NANO_SECONDS(pnugget_path->data_time_read.min_time)
-		);
-		fprintf(output, "%20s %6s %6d %2llu:%.10llu %2llu:%.10llu %2llu:%.10llu \n", " ", "Write", pnugget_path->data_time_write.count,
-				SECONDS(pnugget_path->data_time_write.average_time), NANO_SECONDS(pnugget_path->data_time_write.average_time),
-				SECONDS(pnugget_path->data_time_write.max_time), NANO_SECONDS(pnugget_path->data_time_write.max_time),
-				SECONDS(pnugget_path->data_time_write.min_time), NANO_SECONDS(pnugget_path->data_time_write.min_time)
-		);
+		fprintf(output, "%20s %6s ", " ", "Write");
+		print_data_time_statistic(output, &pnugget_path->data_time_write);
+		fprintf(output, "\n");
+
+		for(i=0 ; i<pnugget_path->elemidx-1 ; i++)
+		{
+			fprintf(output, "%18s%.2s %6s ", " ", &pnugget_path->states[i], "Read");
+			print_data_time_statistic(output, &pnugget_path->data_time_interval_read[i]);
+			if(pnugget_path->data_time_read.average_time != 0)
+			{
+				fprintf(output, " %2.2f%%", ((double)pnugget_path->data_time_interval_read[i].average_time / pnugget_path->data_time_read.average_time) * 100);
+			}
+			else
+			{
+				fprintf(output, " %2.2f%%", 0.0);
+			}
+			fprintf(output, "\n");
+
+			fprintf(output, "%20s %6s ", " ", "Write");
+			print_data_time_statistic(output, &pnugget_path->data_time_interval_write[i]);
+			if(pnugget_path->data_time_write.average_time != 0)
+			{
+				fprintf(output, " %2.2f%%", ((double)pnugget_path->data_time_interval_write[i].average_time / pnugget_path->data_time_write.average_time) * 100);
+			}
+			else
+			{
+				fprintf(output, " %2.2f%%", 0.0);
+			}
+			fprintf(output, "\n");
+		}
 		fprintf(output, "\n");
 	}
 
@@ -1033,10 +1115,20 @@ void process_path_statistic(int ng_cnt)
 	list_for_each_entry_safe(pnugget_path, tmpdng_path, &nugget_path_head, link)
 	{
 		list_del(&pnugget_path->link);
+		free(pnugget_path->data_time_interval_read);
+		free(pnugget_path->data_time_interval_write);
 		free(pnugget_path);
 	}
 }
 
+void print_data_time_statistic(FILE* stream, struct data_time* pdata_time)
+{
+	fprintf(stream, "%6d %2llu:%.10llu %2llu:%.10llu %2llu:%.10llu", pdata_time->count,
+			SECONDS(pdata_time->average_time), NANO_SECONDS(pdata_time->average_time),
+			SECONDS(pdata_time->max_time), NANO_SECONDS(pdata_time->max_time),
+			SECONDS(pdata_time->min_time), NANO_SECONDS(pdata_time->min_time)
+	       );
+}
 
 //---------------------------------------- pid statistic -------------------------------------------------//
 //function for handling data structure for pid statistic
