@@ -957,6 +957,8 @@ void travel_path_statistic(struct dio_nugget* pdng)
 
 		pnugget_path->data_time_interval_read = (struct data_time*)malloc(sizeof(struct data_time) * pdng->elemidx);
 		pnugget_path->data_time_interval_write = (struct data_time*)malloc(sizeof(struct data_time) * pdng->elemidx);
+		memset(pnugget_path->data_time_interval_read, 0, sizeof(struct data_time) * pdng->elemidx);
+		memset(pnugget_path->data_time_interval_write, 0, sizeof(struct data_time) * pdng->elemidx);
 
 		// Init pnugget_path's members
 		pnugget_path->elemidx = pdng->elemidx;
@@ -972,17 +974,22 @@ void travel_path_statistic(struct dio_nugget* pdng)
 		// Add list
 		list_add(&(pnugget_path->link), &nugget_path_head);
 	}
-
+	
 	// Add read/write count to distribute those.
 	if(pdng->category & BLK_TC_READ)
 	{
 		pdata_time = &pnugget_path->data_time_read;
 		pdata_time_interval = pnugget_path->data_time_interval_read;
 	}
-	if(pdng->category & BLK_TC_WRITE)
+	else if(pdng->category & BLK_TC_WRITE)
 	{
 		pdata_time = &pnugget_path->data_time_write;
 		pdata_time_interval = pnugget_path->data_time_interval_write;
+	}
+	else
+	{
+		DBGOUT("%x \n", pdng->category);
+		return ;
 	}
 
 	// Set data on pnugget_path.
@@ -1013,6 +1020,7 @@ void travel_path_statistic(struct dio_nugget* pdng)
 			pdata_time_interval[i].min_time = nugget_time;
 		}
 	}
+
 }
 
 
