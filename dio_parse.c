@@ -261,7 +261,7 @@ static int stat_fn_list_cnt = 0;	//statistic callback functions iterated on list
 					//callback function for list is filled from the 
 					//last index of callback table
 
-#define ARG_OPTS "i:o:p:T:S:P:s"
+#define ARG_OPTS "i:o:p:T:S:P:s:"
 static struct option arg_opts[] = {
 	{	
 		.name = "resfile",
@@ -475,10 +475,11 @@ bool parse_args(int argc, char** argv){
 		break;
 	case 's':
 		p = strtok(optarg,",");
-		check_stat_opt(p);
-		while(p!=NULL) {
-			p = strtok(NULL,",");
+		check_stat_opt(optarg);
+		
+		while( p != NULL ){
 			check_stat_opt(p);
+			p = strtok(NULL, ",");
 		}
 		//path, pid, cpu	
 		break;
