@@ -1169,7 +1169,7 @@ void process_path_statistic(int ng_cnt)
 
 void print_data_time_statistic(FILE* stream, struct data_time* pdata_time)
 {
-	fprintf(stream, "%6d %2llu:%.10llu %2llu:%.10llu %2llu:%.10llu", pdata_time->count,
+	fprintf(stream, "%6d %2llu.%.9llu %2llu.%.9llu %2llu.%.9llu", pdata_time->count,
 			SECONDS(pdata_time->average_time), NANO_SECONDS(pdata_time->average_time),
 			SECONDS(pdata_time->max_time), NANO_SECONDS(pdata_time->max_time),
 			SECONDS(pdata_time->min_time), NANO_SECONDS(pdata_time->min_time)
@@ -1303,14 +1303,14 @@ void process_pid_statistic(int ng_cnt){
 			ppsd->data_time_write.min_time = 0;
 
 		//printing
-		fprintf(output, "%10"PRIu32" %6s %6d %2llu:%.10llu %2llu:%.10llu %2llu:%.10llu \n", 
+		fprintf(output, "%10"PRIu32" %6s %6d %2llu.%.9llu %2llu.%.9llu %2llu.%.9llu \n", 
 			ppsd->pid, "Read", ppsd->data_time_read.count, 
 			SECONDS(ppsd->data_time_read.average_time), NANO_SECONDS(ppsd->data_time_read.average_time),
 			SECONDS(ppsd->data_time_read.max_time), NANO_SECONDS(ppsd->data_time_read.max_time),
 			SECONDS(ppsd->data_time_read.min_time), NANO_SECONDS(ppsd->data_time_read.min_time)
 		);
 
-		fprintf(output, "%10s %6s %6d %2llu:%.10llu %2llu:%.10llu %2llu:%.10llu \n", 
+		fprintf(output, "%10s %6s %6d %2llu.%.9llu %2llu.%.9llu %2llu.%.9llu \n", 
 			" ", "Write", ppsd->data_time_write.count,
 			SECONDS(ppsd->data_time_write.average_time), NANO_SECONDS(ppsd->data_time_write.average_time),
 			SECONDS(ppsd->data_time_write.max_time), NANO_SECONDS(ppsd->data_time_write.max_time),
@@ -1575,12 +1575,12 @@ void print_cpu_statistic(void)
 	printf("%4s %6s %6s %12s %12s %12s \n", "CPU", "Type", "No", "AverageTime", "MaxTime", "MinTime");
 	for(i=0 ; i<maxCPU ; i++)
 	{
-		fprintf(output, "%4d %6s %6d %2llu:%.10llu %2llu:%.10llu %2llu:%.10llu \n", i, "Read", diocpu[i].data_time_read.count,
+		fprintf(output, "%4d %6s %6d %2llu.%.9llu %2llu.%.9llu %2llu.%.9llu \n", i, "Read", diocpu[i].data_time_read.count,
 			SECONDS(diocpu[i].data_time_read.average_time), NANO_SECONDS(diocpu[i].data_time_read.average_time),
 			SECONDS(diocpu[i].data_time_read.max_time), NANO_SECONDS(diocpu[i].data_time_read.max_time),
 			SECONDS(diocpu[i].data_time_read.min_time), NANO_SECONDS(diocpu[i].data_time_read.min_time)
 		);
-		fprintf(output, "%4s %6s %6d %2llu:%.10llu %2llu:%.10llu %2llu:%.10llu \n", " ", "Write", diocpu[i].data_time_write.count,
+		fprintf(output, "%4s %6s %6d %2llu.%.9llu %2llu.%.9llu %2llu.%.9llu \n", " ", "Write", diocpu[i].data_time_write.count,
 			SECONDS(diocpu[i].data_time_write.average_time), NANO_SECONDS(diocpu[i].data_time_write.average_time),
 			SECONDS(diocpu[i].data_time_write.max_time), NANO_SECONDS(diocpu[i].data_time_write.max_time),
 			SECONDS(diocpu[i].data_time_write.min_time), NANO_SECONDS(diocpu[i].data_time_write.min_time)
