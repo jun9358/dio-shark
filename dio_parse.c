@@ -243,6 +243,7 @@ static uint64_t time_end;
 static uint64_t sector_start;
 static uint64_t sector_end;
 static uint64_t filter_pid;
+static bool is_graphic;
 static bool is_path;
 static bool is_pid;
 static bool is_cpu;
@@ -260,7 +261,7 @@ static int stat_fn_list_cnt = 0;	//statistic callback functions iterated on list
 					//callback function for list is filled from the 
 					//last index of callback table
 
-#define ARG_OPTS "i:o:p:T:S:P:s:"
+#define ARG_OPTS "i:o:p:T:S:P:s:g"
 static struct option arg_opts[] = {
 	{	
 		.name = "resfile",
@@ -303,6 +304,12 @@ static struct option arg_opts[] = {
 		.has_arg = required_argument,
 		.flag = NULL,
 		.val = 's'
+	},
+	{
+		.name = "graphic",
+		.has_arg = no_argument,
+		.flag = NULL,
+		.val = 'g'
 	}
 };
 
@@ -317,6 +324,7 @@ int main(int argc, char** argv){
 	sector_start = 0;
 	sector_end = (uint64_t)(-1);
 	filter_pid = (uint64_t)(-1);
+	is_graphic = false;
 	is_path = false;
 	is_cpu = false;
 	is_pid = false;
@@ -491,6 +499,9 @@ bool parse_args(int argc, char** argv){
 			p = strtok(NULL, ",");
 		}
 		//path, pid, cpu	
+		break;
+	case 'g':
+		is_graphic = true;
 		break;
         };
     }
