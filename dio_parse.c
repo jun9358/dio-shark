@@ -146,6 +146,7 @@ typedef void(*statistic_process_func)(int);
 /*--------------	function interfaces	-----------------------*/
 /* function for option handling */
 bool parse_args(int argc, char** argv);
+void check_stat_opt(char *str);
 
 /* function for bit list */
 // insert bit_entity data into rbiten_head order by time
@@ -249,6 +250,10 @@ static uint64_t time_end;
 static uint64_t sector_start;
 static uint64_t sector_end;
 static uint64_t filter_pid;
+static bool is_path;
+static bool is_pid;
+static bool is_cpu;
+
 
 static struct rb_root rben_root;	//root of rbentity tree
 static struct list_head biten_head;
@@ -262,7 +267,7 @@ static int stat_fn_list_cnt = 0;	//statistic callback functions iterated on list
 					//callback function for list is filled from the 
 					//last index of callback table
 
-#define ARG_OPTS "i:o:p:T:S:P:s"
+#define ARG_OPTS "i:o:p:T:S:P:s:"
 static struct option arg_opts[] = {
 	{	
 		.name = "resfile",
@@ -319,6 +324,9 @@ int main(int argc, char** argv){
 	sector_start = 0;
 	sector_end = (uint64_t)(-1);
 	filter_pid = (uint64_t)(-1);
+	is_path = false;
+	is_cpu = false;
+	is_pid = false;
 
 
 	int ifd = -1;
@@ -412,8 +420,18 @@ int main(int argc, char** argv){
 		add_nugget_stat_func(NULL, NULL, print_sector);
 	}
 
-	//statistic_rb_traveling();
-	//statistic_list_for_each();
+	//statistics
+	add_bit_stat_func(init_type_statistic, itr_type_statistic, process_type_statistic);
+
+	if(is_path)
+		add_nugget_stat_func(init_path_statistic, travel_path_statistic, process_path_statistic);
+	if(is_cpu)
+		add_bit_stat_func(init_cpu_statistic, itr_cpu_statistic, process_cpu_statistic);
+	if(is_pid)
+		add_nugget_stat_func(init_pid_statistic, travel_pid_statistic, process_pid_statistic);
+
+	statistic_list_for_each();
+	statistic_rb_traveling();
 
 	//clean all list entities
 	if(output!=stdout){
@@ -472,13 +490,32 @@ bool parse_args(int argc, char** argv){
 		filter_pid = (uint64_t)atoi(optarg);
 		break;
 	case 's':
+		p = strtok(optarg,",");
+		check_stat_opt(optarg);
+		
+		while( p != NULL ){
+			check_stat_opt(p);
+			p = strtok(NULL, ",");
+		}
 		//path, pid, cpu	
 		break;
         };
     }
     return true;
 }
+void check_stat_opt(char *str) {
+	if(!strcmp(str,"cpu"))
+		is_cpu = true;
+	else if(!strcmp(str,"path"))
+		is_path = true;
+	else if(!strcmp(str,"pid"))
+		is_pid = true;
+	else {
+		printf("-s Option Error\n");
+		exit(1);
+	}
 
+}
 void insert_proper_pos(struct bit_entity* pbiten){
 	struct list_head* p = NULL;
 	struct bit_entity* _pbiten = NULL;
@@ -812,6 +849,7 @@ void statistic_list_for_each(){
 			if( stat_itr_fns[i] != NULL )
 				stat_itr_fns[i](&pos->bit);
 		}
+		cnt++;
 	}
 
 	//process data
@@ -880,12 +918,12 @@ void process_type_statistic(int bit_cnt){
 	int tot;
 	fprintf(output, "%7s %10s %13s\n", "TYPE","COUNT","PERCENTAGE");
 	
-	fprintf(output, "%7s %10d %13lf\n", "R",r_cnt, r_cnt/(double)bit_cnt*100);
-	fprintf(output, "%7s %10d %13lf\n", "W",w_cnt,w_cnt/(double)bit_cnt*100);
-	fprintf(output, "%7s %10d %13lf\n", "Unknown",x_cnt, x_cnt/(double)bit_cnt*100);
+	fprintf(output, "%7s %10d %13f\n", "R",r_cnt, r_cnt/(double)bit_cnt*100);
+	fprintf(output, "%7s %10d %13f\n", "W",w_cnt,w_cnt/(double)bit_cnt*100);
+	fprintf(output, "%7s %10d %13f\n", "Unknown",x_cnt, x_cnt/(double)bit_cnt*100);
 
 	tot = r_cnt + w_cnt + x_cnt;
-	fprintf(output, "%7s %10d %13lf\n", "Total :",tot, tot/(double)bit_cnt*100);
+	fprintf(output, "%7s %10d %13f\n", "Total :",tot, tot/(double)bit_cnt*100);
 }
 
 //------------------- path statistics ------------------------------//
@@ -1411,15 +1449,15 @@ void process_cpu_statistic(int bit_cnt)
 
 	for(i=0 ; i<maxCPU ; i++)
 	{
-		fprintf(output,"%4d %7s %8d %8lf\n",
+		fprintf(output,"%4d %7s %8d %8f\n",
 			i, "R", diocpu[i].r_cnt, diocpu[i].r_cnt/(double)bit_cnt*100);
-		fprintf(output,"%4s %7s %8d %8lf\n",
+		fprintf(output,"%4s %7s %8d %8f\n",
 			" ","W",diocpu[i].w_cnt, diocpu[i].w_cnt/(double)bit_cnt*100);
-		fprintf(output,"%4s %7s %8d %8lf\n",
+		fprintf(output,"%4s %7s %8d %8f\n",
 			" ","unknown",diocpu[i].x_cnt, diocpu[i].x_cnt/(double)bit_cnt*100);
 
 		tot = diocpu[i].r_cnt + diocpu[i].w_cnt + diocpu[i].x_cnt;
-		fprintf(output,"%4s %7s %8d %8lf\n",
+		fprintf(output,"%4s %7s %8d %8f\n",
 			" ","Total :",tot, tot/(double)bit_cnt*100);
 		fprintf(output,"\n");
 	}
