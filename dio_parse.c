@@ -5,6 +5,7 @@
 	This source is free on GNU General Public License.
 */
 
+#include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <inttypes.h>
@@ -211,12 +212,16 @@ struct dio_nugget_path* find_nugget_path(struct list_head* nugget_path_head, cha
 void init_path_statistic(void);
 void travel_path_statistic(struct dio_nugget* pdng);
 void process_path_statistic(int ng_cnt);
+void print_path_statistic_graphic(struct dio_nugget_path* pnugget_path);
+void print_path_statistic_text(struct dio_nugget_path* pnugget_path);
 
 // cpu statistic functions
 void create_diocpu(void);
 void init_cpu_statistic(void);
 void itr_cpu_statistic(struct blk_io_trace* pbit);
 void process_cpu_statistic(int bit_cnt);
+void print_cpu_statistic_graphic(void);
+void print_cpu_statistic_text(int bit_cnt);
 
 // pid statistic functions
 struct pid_stat_data{
@@ -235,6 +240,8 @@ static void __clear_pid_stat(struct rb_node* p);
 void init_pid_statistic();
 void travel_pid_statistic(struct dio_nugget* pdng);
 void process_pid_statistic(int ng_cnt);
+void print_pid_statistic_graphic(struct pid_stat_data* ppsd);
+void print_pid_statistic_text(struct pid_stat_data* ppsd);
 
 /*--------------	global variables	-----------------------*/
 #define MAX_FILEPATH_LEN 255
@@ -939,6 +946,7 @@ void process_type_statistic(int bit_cnt){
 //------------------- path statistics ------------------------------//
 struct list_head nugget_path_head;
 struct dio_nugget_path* pnugget_path;
+FILE*	fPathData = NULL;
 
 int instr(const char* str1, const char* str2)
 {
@@ -983,6 +991,15 @@ struct dio_nugget_path* find_nugget_path(struct list_head* nugget_path_head, cha
 
 void init_path_statistic(void)
 {
+	if(is_graphic)
+	{
+		fPathData = fopen("dioparse.path.dat", "wt");
+		if(!fPathData)
+		{
+			DBGOUT("dioparse.path.dat open error \n");
+		}
+	}
+
 	INIT_LIST_HEAD(&nugget_path_head);
 }
 
@@ -1076,7 +1093,14 @@ void process_path_statistic(int ng_cnt)
 {
 	int i;
 
-	fprintf(output,"%20s %6s %6s %12s %12s %12s \n", "Path", "Type", "No", "AverageTime", "MaxTime", "MinTime");
+	if(is_graphic)
+	{
+		fprintf(fPathData, "%s %s %s\n", "path", "read", "write");
+	}
+	else
+	{
+		fprintf(output,"%20s %6s %6s %12s %12s %12s \n", "Path", "Type", "No", "AverageTime", "MaxTime", "MinTime");
+	}
 
 	list_for_each_entry(pnugget_path, &nugget_path_head, link)
 	{
@@ -1122,47 +1146,19 @@ void process_path_statistic(int ng_cnt)
 				pnugget_path->data_time_interval_write[i].min_time = 0;
 			}
 		}
-
-		//printing
 		if(instr(pnugget_path->states, "P") || instr(pnugget_path->states, "U") || instr(pnugget_path->states, "?"))
 		{
 			continue;
 		}
-		fprintf(output, "%20s %6s ", pnugget_path->states, "Read");
-		print_data_time_statistic(output, &pnugget_path->data_time_read);
-		fprintf(output, "\n");
 
-		fprintf(output, "%20s %6s ", " ", "Write");
-		print_data_time_statistic(output, &pnugget_path->data_time_write);
-		fprintf(output, "\n");
-
-		for(i=0 ; i<pnugget_path->elemidx-1 ; i++)
+		if(is_graphic)
 		{
-			fprintf(output, "%18s%.2s %6s ", " ", &pnugget_path->states[i], "Read");
-			print_data_time_statistic(output, &pnugget_path->data_time_interval_read[i]);
-			if(pnugget_path->data_time_read.average_time != 0)
-			{
-				fprintf(output, " %2.2f%%", ((double)pnugget_path->data_time_interval_read[i].average_time / pnugget_path->data_time_read.average_time) * 100);
-			}
-			else
-			{
-				fprintf(output, " %2.2f%%", 0.0);
-			}
-			fprintf(output, "\n");
-
-			fprintf(output, "%20s %6s ", " ", "Write");
-			print_data_time_statistic(output, &pnugget_path->data_time_interval_write[i]);
-			if(pnugget_path->data_time_write.average_time != 0)
-			{
-				fprintf(output, " %2.2f%%", ((double)pnugget_path->data_time_interval_write[i].average_time / pnugget_path->data_time_write.average_time) * 100);
-			}
-			else
-			{
-				fprintf(output, " %2.2f%%", 0.0);
-			}
-			fprintf(output, "\n");
+			print_path_statistic_graphic(pnugget_path);
 		}
-		fprintf(output, "\n");
+		else
+		{
+			print_path_statistic_text(pnugget_path);
+		}
 	}
 
 	// Free all dynamic allocated variables.
@@ -1175,6 +1171,59 @@ void process_path_statistic(int ng_cnt)
 		free(pnugget_path->data_time_interval_write);
 		free(pnugget_path);
 	}
+
+	if(fPathData != NULL)
+	{
+		fclose(fPathData);
+		system("gnuplot path.cmd -p");
+	}
+}
+
+void print_path_statistic_graphic(struct dio_nugget_path* pnugget_path)
+{
+	fprintf(fPathData, "%s %d %d\n", pnugget_path->states, pnugget_path->data_time_read.count, pnugget_path->data_time_write.count);
+}
+
+void print_path_statistic_text(struct dio_nugget_path* pnugget_path)
+{
+	int i;
+
+	//printing
+	fprintf(output, "%20s %6s ", pnugget_path->states, "Read");
+	print_data_time_statistic(output, &pnugget_path->data_time_read);
+	fprintf(output, "\n");
+
+	fprintf(output, "%20s %6s ", " ", "Write");
+	print_data_time_statistic(output, &pnugget_path->data_time_write);
+	fprintf(output, "\n");
+
+	for(i=0 ; i<pnugget_path->elemidx-1 ; i++)
+	{
+		fprintf(output, "%18s%.2s %6s ", " ", &pnugget_path->states[i], "Read");
+		print_data_time_statistic(output, &pnugget_path->data_time_interval_read[i]);
+		if(pnugget_path->data_time_read.average_time != 0)
+		{
+			fprintf(output, " %2.2f%%", ((double)pnugget_path->data_time_interval_read[i].average_time / pnugget_path->data_time_read.average_time) * 100);
+		}
+		else
+		{
+			fprintf(output, " %2.2f%%", 0.0);
+		}
+		fprintf(output, "\n");
+
+		fprintf(output, "%20s %6s ", " ", "Write");
+		print_data_time_statistic(output, &pnugget_path->data_time_interval_write[i]);
+		if(pnugget_path->data_time_write.average_time != 0)
+		{
+			fprintf(output, " %2.2f%%", ((double)pnugget_path->data_time_interval_write[i].average_time / pnugget_path->data_time_write.average_time) * 100);
+		}
+		else
+		{
+			fprintf(output, " %2.2f%%", 0.0);
+		}
+		fprintf(output, "\n");
+	}
+	fprintf(output, "\n");
 }
 
 void print_data_time_statistic(FILE* stream, struct data_time* pdata_time)
@@ -1244,7 +1293,15 @@ void __clear_pid_stat(struct rb_node* p){
 	free(psd);
 }
 
-void init_pid_statistic(){
+FILE* fPidData = NULL;
+void init_pid_statistic()
+{
+	fPidData = fopen("dioparse.pid.dat", "wt");
+	if(!fPidData)
+	{
+		DBGOUT("dioparse.pid.dat open error \n");
+		return ;
+	}
 }
 
 void travel_pid_statistic(struct dio_nugget* pdng){
@@ -1292,7 +1349,14 @@ void travel_pid_statistic(struct dio_nugget* pdng){
 void process_pid_statistic(int ng_cnt){
 	struct rb_node* node = NULL;
 
-	fprintf(output,"%10s %6s %6s %12s %12s %12s \n", "pid", "Type", "No", "AverageTime", "MaxTime", "MinTime");
+	if(is_graphic)
+	{
+		fprintf(fPidData, "%s %s %s\n", "pid", "read", "write");
+	}
+	else
+	{
+		fprintf(output,"%10s %6s %6s %12s %12s %12s \n", "pid", "Type", "No", "AverageTime", "MaxTime", "MinTime");
+	}
 	node = rb_first(&psd_root);
 	do{
 		struct pid_stat_data* ppsd = NULL;
@@ -1313,25 +1377,47 @@ void process_pid_statistic(int ng_cnt){
 			ppsd->data_time_write.min_time = 0;
 
 		//printing
-		fprintf(output, "%10"PRIu32" %6s %6d %2llu.%.9llu %2llu.%.9llu %2llu.%.9llu \n", 
-			ppsd->pid, "Read", ppsd->data_time_read.count, 
-			SECONDS(ppsd->data_time_read.average_time), NANO_SECONDS(ppsd->data_time_read.average_time),
-			SECONDS(ppsd->data_time_read.max_time), NANO_SECONDS(ppsd->data_time_read.max_time),
-			SECONDS(ppsd->data_time_read.min_time), NANO_SECONDS(ppsd->data_time_read.min_time)
-		);
-
-		fprintf(output, "%10s %6s %6d %2llu.%.9llu %2llu.%.9llu %2llu.%.9llu \n", 
-			" ", "Write", ppsd->data_time_write.count,
-			SECONDS(ppsd->data_time_write.average_time), NANO_SECONDS(ppsd->data_time_write.average_time),
-			SECONDS(ppsd->data_time_write.max_time), NANO_SECONDS(ppsd->data_time_write.max_time),
-			SECONDS(ppsd->data_time_write.min_time), NANO_SECONDS(ppsd->data_time_write.min_time)
-		);
-		fprintf(output, "\n");
+		if(is_graphic)
+		{
+			print_pid_statistic_graphic(ppsd);
+		}
+		else
+		{
+			print_pid_statistic_text(ppsd);
+		}
 	}while( (node = rb_next(node)) != NULL );
 
 	//clear all pid tree
 	struct rb_node* parent = psd_root.rb_node;
 	__clear_pid_stat(parent);
+
+	if(fPidData != NULL)
+	{
+		fclose(fPidData);
+		system("gnuplot pid.cmd -p");
+	}
+}
+
+void print_pid_statistic_graphic(struct pid_stat_data* ppsd)
+{
+	fprintf(fPidData, "%"PRIu32" %d %d\n", ppsd->pid, ppsd->data_time_read.count, ppsd->data_time_write.count);
+}
+void print_pid_statistic_text(struct pid_stat_data* ppsd)
+{
+	fprintf(output, "%10"PRIu32" %6s %6d %2llu.%.9llu %2llu.%.9llu %2llu.%.9llu \n", 
+			ppsd->pid, "Read", ppsd->data_time_read.count, 
+			SECONDS(ppsd->data_time_read.average_time), NANO_SECONDS(ppsd->data_time_read.average_time),
+			SECONDS(ppsd->data_time_read.max_time), NANO_SECONDS(ppsd->data_time_read.max_time),
+			SECONDS(ppsd->data_time_read.min_time), NANO_SECONDS(ppsd->data_time_read.min_time)
+	       );
+
+	fprintf(output, "%10s %6s %6d %2llu.%.9llu %2llu.%.9llu %2llu.%.9llu \n", 
+			" ", "Write", ppsd->data_time_write.count,
+			SECONDS(ppsd->data_time_write.average_time), NANO_SECONDS(ppsd->data_time_write.average_time),
+			SECONDS(ppsd->data_time_write.max_time), NANO_SECONDS(ppsd->data_time_write.max_time),
+			SECONDS(ppsd->data_time_write.min_time), NANO_SECONDS(ppsd->data_time_write.min_time)
+	       );
+	fprintf(output, "\n");
 }
 
 
@@ -1399,6 +1485,7 @@ void process_section_statistic(int ng_cnt){
 //------------------- cpu statistics ------------------------------//
 
 #define INIT_NUM_CPU 4
+FILE* fCpuData = NULL;
 struct dio_cpu *diocpu;
 int maxCPU = 0;
 
@@ -1423,6 +1510,15 @@ void create_diocpu(void)
 
 void init_cpu_statistic(void)
 {
+	if(is_graphic)
+	{
+		fCpuData = fopen("dioparse.cpu.dat", "wt");
+		if(!fCpuData)
+		{
+			DBGOUT("dioparse.cpu.dat open error \n");
+		}
+	}
+
 	create_diocpu();
 }
 
@@ -1433,28 +1529,60 @@ void itr_cpu_statistic(struct blk_io_trace* pbit)
 	// Is enough diocpu?
 	
 	// Distribute read/write data and point that.
+	if(category & BLK_TC_NOTIFY || pbit->cpu > 4)
+	{
+		DBGOUT("cpu:%d \n", pbit->cpu);
+		return ;
+	}
+
+	while(maxCPU <= pbit->cpu)
+	{
+		create_diocpu();
+	}
 	if(category & BLK_TC_READ)
 	{
-		while(maxCPU <= pbit->cpu)
-		{
-			create_diocpu();
-		}
 		diocpu[pbit->cpu].r_cnt++;
 	}
 	else if(category & BLK_TC_WRITE)
 	{
-		while(maxCPU <= pbit->cpu)
-		{
-			create_diocpu();
-		}
 		diocpu[pbit->cpu].w_cnt++;
 	}
 }
 
 void process_cpu_statistic(int bit_cnt)
 {
-	int i, tot;
+	if(is_graphic)
+	{
+		print_cpu_statistic_graphic();
+	}
+	else
+	{
+		print_cpu_statistic_text(bit_cnt);
+	}
 
+	//clear data
+	free(diocpu);
+	if(fCpuData != NULL)
+	{
+		fclose(fCpuData);
+		system("gnuplot cpu.cmd -p");
+	}
+}
+
+void print_cpu_statistic_graphic(void)
+{
+	int i;
+
+	fprintf(fCpuData, "%s %s %s\n", "cpu", "read", "write");
+	for(i=0 ; i<maxCPU ; i++)
+	{
+		fprintf(fCpuData, "%d %d %d\n", i, diocpu[i].r_cnt, diocpu[i].w_cnt);
+	}
+}
+
+void print_cpu_statistic_text(int bit_cnt)
+{
+	int i, tot;
 	fprintf(output,"%4s %7s %8s %8s\n", "CPU", "Type", "COUNT", "RATE");
 
 	for(i=0 ; i<maxCPU ; i++)
@@ -1472,8 +1600,6 @@ void process_cpu_statistic(int bit_cnt)
 		fprintf(output,"\n");
 	}
 
-	//clear data
-	free(diocpu);
 }
 
 #if 0	// Replace other source
