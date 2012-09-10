@@ -422,10 +422,10 @@ int main(int argc, char** argv){
 	if(is_cpu)
 		add_bit_stat_func(init_cpu_statistic, itr_cpu_statistic, process_cpu_statistic);
 	if(is_pid)
-		add_nugget_stat_func(init_pid_statistic, travel_pid_statistic, process_path_statistic);
+		add_nugget_stat_func(init_pid_statistic, travel_pid_statistic, process_pid_statistic);
 
-	statistic_rb_traveling();
 	statistic_list_for_each();
+	statistic_rb_traveling();
 
 	//clean all list entities
 	if(output!=stdout){
