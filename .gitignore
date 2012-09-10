@@ -5,3 +5,5 @@ dioparse
 dioshark.output
 tags
 core
+*.dat
+*.cmd

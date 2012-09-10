@@ -1529,7 +1529,7 @@ void itr_cpu_statistic(struct blk_io_trace* pbit)
 	// Is enough diocpu?
 	
 	// Distribute read/write data and point that.
-	if(category & BLK_TC_NOTIFY || pbit->cpu > 4)
+	if(category & BLK_TC_NOTIFY || pbit->cpu > 128)
 	{
 		DBGOUT("cpu:%d \n", pbit->cpu);
 		return ;
