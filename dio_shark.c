@@ -459,8 +459,10 @@ bool lock_shark_on_cpu(int idxCPU)
 
 int openfile_device(char *devpath){
 	int fdDevice;
+	char tmpdevpath[MAX_FILE_LENGTH];
 
-	fdDevice = open(devpath, O_RDONLY);
+	sprintf(tmpdevpath, "/dev/%s", devpath);
+	fdDevice = open(tmpdevpath, O_RDONLY);
 	if (fdDevice < 0)
 		return -1;
 
