@@ -20,7 +20,7 @@ int main(void)
 	fdDevice = openfile_device("/dev/sda");
 
 	ioctl(fdDevice, BLKTRACESTOP);
-	ioctl(fdDevice, BLKTRACEDOWN);
+	ioctl(fdDevice, BLKTRACETEARDOWN);
 
 	return 0;
 }
