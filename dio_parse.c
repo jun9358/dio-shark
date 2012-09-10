@@ -1296,11 +1296,14 @@ void __clear_pid_stat(struct rb_node* p){
 FILE* fPidData = NULL;
 void init_pid_statistic()
 {
-	fPidData = fopen("dioparse.pid.dat", "wt");
-	if(!fPidData)
+	if(is_graphic)
 	{
-		DBGOUT("dioparse.pid.dat open error \n");
-		return ;
+		fPidData = fopen("dioparse.pid.dat", "wt");
+		if(!fPidData)
+		{
+			DBGOUT("dioparse.pid.dat open error \n");
+			return ;
+		}
 	}
 }
 
