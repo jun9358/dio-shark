@@ -119,7 +119,6 @@ struct dio_cpu
 {
 	int r_cnt;
 	int w_cnt;
-	int x_cnt;
 };
 
 
@@ -1316,23 +1315,23 @@ void itr_cpu_statistic(struct blk_io_trace* pbit)
 	uint32_t category = pbit->action >> BLK_TC_SHIFT;
 
 	// Is enough diocpu?
-	while(maxCPU <= pbit->cpu)
-	{
-		create_diocpu();
-	}
 	
 	// Distribute read/write data and point that.
 	if(category & BLK_TC_READ)
 	{
+		while(maxCPU <= pbit->cpu)
+		{
+			create_diocpu();
+		}
 		diocpu[pbit->cpu].r_cnt++;
 	}
 	else if(category & BLK_TC_WRITE)
 	{
+		while(maxCPU <= pbit->cpu)
+		{
+			create_diocpu();
+		}
 		diocpu[pbit->cpu].w_cnt++;
-	}
-	else
-	{
-		diocpu[pbit->cpu].x_cnt++;
 	}
 }
 
@@ -1348,10 +1347,10 @@ void process_cpu_statistic(int bit_cnt)
 			i, "R", diocpu[i].r_cnt, diocpu[i].r_cnt/(double)bit_cnt*100);
 		fprintf(output,"%4s %7s %8d %8f\n",
 			" ","W",diocpu[i].w_cnt, diocpu[i].w_cnt/(double)bit_cnt*100);
-		fprintf(output,"%4s %7s %8d %8f\n",
-			" ","unknown",diocpu[i].x_cnt, diocpu[i].x_cnt/(double)bit_cnt*100);
+		//fprintf(output,"%4s %7s %8d %8f\n",
+			//" ","unknown",diocpu[i].x_cnt, diocpu[i].x_cnt/(double)bit_cnt*100);
 
-		tot = diocpu[i].r_cnt + diocpu[i].w_cnt + diocpu[i].x_cnt;
+		tot = diocpu[i].r_cnt + diocpu[i].w_cnt;
 		fprintf(output,"%4s %7s %8d %8f\n",
 			" ","Total :",tot, tot/(double)bit_cnt*100);
 		fprintf(output,"\n");
