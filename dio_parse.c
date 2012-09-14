@@ -274,7 +274,7 @@ static int stat_fn_list_cnt = 0;	//statistic callback functions iterated on list
 					//callback function for list is filled from the 
 					//last index of callback table
 
-#define ARG_OPTS "i:o:p:T:S:P:s:g"
+#define ARG_OPTS "i:o:p:T:S:P:s:g:h"
 static struct option arg_opts[] = {
 	{	
 		.name = "resfile",
@@ -323,8 +323,24 @@ static struct option arg_opts[] = {
 		.has_arg = no_argument,
 		.flag = NULL,
 		.val = 'g'
+	},
+	{
+		.name = "help",
+		.has_arg = no_argument,
+		.flag = NULL,
+		.val = 'h'
 	}
 };
+
+static char opt_detail[] = "\n"\
+			"\t-i : The input file name which has the raw tracing data.\n"\
+			"\t-o : The output file name of dioparse.\n"\
+			"\t-p : Print option. It can have two suboptions \'sector\' , \'time\'\n"\
+			"\t-T : Time filter option\n"\
+			"\t-S : Sector filter option\n"\
+			"\t-P : Pid filter option\n"\
+			"\t-s : Statistic option. It can have three suboptions \'path\', \'pid\' and \'cpu\'\n"\
+			"\t-g : Show statistic results graphically.\n\n";
 
 /*--------------	function implementations	---------------*/
 int main(int argc, char** argv){
@@ -515,6 +531,11 @@ bool parse_args(int argc, char** argv){
 		break;
 	case 'g':
 		is_graphic = true;
+		break;
+	case 'h':
+		printf("USAGE : %s [ -i <input> ] [ -o <output> ] [-p <print> ] [ -T <time filter> ] [ -S <sector filter> ] [ -P <pid filter> ] [ -s <statistic> ] [ -g ]\n", argv[0]);
+		printf("%s", opt_detail);
+		exit(1);
 		break;
         };
     }
