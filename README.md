@@ -21,6 +21,7 @@ dioshark [ -d <device> ] [ -o <outfile> ]
 -o : output file name
 
 ### dioparse
+
 dioparse [ -i <input> ] [ -o <output> ] [-p <print> ] [ -T <time filter> ] [ -S <sector filter> ] [ -P <pid filter> ] [ -s <statistic> ] [ -g ]
 -i : The input file name which has the raw tracing data.
 -o : The output file name of dioparse.
