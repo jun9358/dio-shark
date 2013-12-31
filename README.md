@@ -16,21 +16,21 @@ dio-shark is known to compile and pass its test suite on:
 
 ## Usages
 ### dioshark
-dioshark [ -d <device> ] [ -o <outfile> ]
--d : device which is traced
--o : output file name
+dioshark [ -d \<device\> ] [ -o \<outfile\> ]
+* -d : device which is traced
+* -o : output file name
 
 ### dioparse
 
-dioparse [ -i <input> ] [ -o <output> ] [-p <print> ] [ -T <time filter> ] [ -S <sector filter> ] [ -P <pid filter> ] [ -s <statistic> ] [ -g ]
--i : The input file name which has the raw tracing data.
--o : The output file name of dioparse.
--p : Print option. It can have two suboptions 'sector' , 'time'
--T : Time filter option
--S : Sector filter option
--P : Pid filter option
--s : Statistic option. It can have three suboptions 'path', 'pid' and 'cpu'
--g : Show statistic results graphically.
+dioparse [ -i \<input\> ] [ -o \<output\> ] [-p \<print\> ] [ -T \<time filter\> ] [ -S \<sector filter\> ] [ -P \<pid filter\> ] [ * -s \<statistic\> ] [ -g ]
+* -i : The input file name which has the raw tracing data.
+* -o : The output file name of dioparse.
+* -p : Print option. It can have two suboptions 'sector' , 'time'
+* -T : Time filter option
+* -S : Sector filter option
+* -P : Pid filter option
+* -s : Statistic option. It can have three suboptions 'path', 'pid' and 'cpu'
+* -g : Show statistic results graphically.
 
 
 ## Build and quick start for using the program
@@ -40,8 +40,7 @@ $ make
 $ sudo ./dioshark -d sda -o output_shark
 ```
 
-Perform some input/output action.
-And quit dioshark(using Ctrl+C)
+Perform some input/output action and terminate dioshark(Ctrl+C)
 
 ```bash
 $ sudo ./dioparse -i output_shark -o output_parse.txt
